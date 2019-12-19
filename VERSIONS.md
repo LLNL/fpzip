@@ -11,6 +11,8 @@
 
 - Added CMake support.
 
+- Added user-defined 64-bit integer types for code portability
+
 
 ## 1.2.0 (June 10, 2017)
 
