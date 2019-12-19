@@ -1,9 +1,7 @@
-#include <limits.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
+#include <climits>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include "fpzip.h"
 
 static int
