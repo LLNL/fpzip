@@ -1,0 +1,80 @@
+# compiler executables --------------------------------------------------------
+
+CC = gcc
+CXX = g++
+
+# language standard -----------------------------------------------------------
+
+# CSTD = -std=c89 -Wno-unused-function
+  CSTD = -std=c99
+  CXXSTD = -std=c++98
+# CXXSTD = -std=c++11
+
+# common compiler options -----------------------------------------------------
+
+FLAGS = -O3 -fPIC -Wall -Wextra -pedantic -I../include
+SOFLAGS =
+
+# macOS compiler options (uncomment on macOS) ---------------------------------
+
+# SOFLAGS += -undefined dynamic_lookup
+
+# required compiler macros ----------------------------------------------------
+
+# floating-point arithmetic implementation; choose one
+#   FAST: optimize for speed; may impact correctness and portability
+#   SAFE: use volatile accumulator
+#   EMUL: emulate floating-point arithmetic
+#   INT: reinterpret floating-point numbers as integers; most portable
+
+  FPZIP_FP = FPZIP_FP_FAST
+# FPZIP_FP = FPZIP_FP_SAFE
+# FPZIP_FP = FPZIP_FP_EMUL
+# FPZIP_FP = FPZIP_FP_INT
+
+# output buffer size in bytes (ideally the disk block size)
+  FPZIP_BLOCK_SIZE = 0x1000
+# FPZIP_BLOCK_SIZE = 1
+
+# optional compiler macros ----------------------------------------------------
+
+# use long long for 64-bit types
+# DEFS += -DFPZIP_INT64='long long' -DFPZIP_INT64_SUFFIX='ll'
+# DEFS += -DFPZIP_UINT64='unsigned long long' -DFPZIP_UINT64_SUFFIX='ull'
+
+# bitwise type conversion mechanisms (defaults to memcpy)
+# FPZIP_CONV = -DFPZIP_WITH_REINTERPRET_CAST
+# FPZIP_CONV = -DFPZIP_WITH_UNION
+
+DEFS += -DFPZIP_BLOCK_SIZE=$(FPZIP_BLOCK_SIZE) -DFPZIP_FP=$(FPZIP_FP) $(FPZIP_CONV)
+
+# build targets ---------------------------------------------------------------
+
+# default targets
+BUILD_UTILITIES = 1
+BUILD_TESTING = 0
+BUILD_SHARED_LIBS = 0
+
+# build all targets?
+ifdef BUILD_ALL
+  ifneq ($(BUILD_ALL),0)
+    BUILD_UTILITIES = 1
+    BUILD_TESTING = 1
+  endif
+endif
+
+# build shared libraries?
+ifneq ($(BUILD_SHARED_LIBS),0)
+  LIBRARY = shared
+  LIBFPZIP = libfpzip.so
+else
+  LIBRARY = static
+  LIBFPZIP = libfpzip.a
+endif
+
+# conditionals ----------------------------------------------------------------
+
+# compiler options ------------------------------------------------------------
+
+CFLAGS = $(CSTD) $(FLAGS) $(DEFS)
+CXXFLAGS = $(CXXSTD) $(FLAGS) $(DEFS)
