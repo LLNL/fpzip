@@ -6,10 +6,10 @@ typedef unsigned short ushort;
 typedef unsigned int uint;
 typedef unsigned long ulong;
 
-#if __STDC_VERSION__ >= 199901L
-  /* C99: use standard integer types */
-  #include <stdint.h>
-  #include <inttypes.h>
+#if __cplusplus >= 201103L
+  // C++11 and later: use standard integer types
+  #include <cstdint>
+  #include <cinttypes>
   #define INT64C(x) INT64_C(x)
   #define UINT64C(x) UINT64_C(x)
   #define INT64PRId PRId64
@@ -31,30 +31,30 @@ typedef unsigned long ulong;
   typedef int64_t int64;
   typedef uint64_t uint64;
 #else
-  /* C89: assume common integer types */
+  // C++98: assume common integer types
   typedef signed char int8;
   typedef unsigned char uint8;
   typedef signed short int16;
   typedef unsigned short uint16;
 
-  /* assume 32-bit integers (LP64, LLP64) */
+  // assume 32-bit integers (LP64, LLP64)
   typedef signed int int32;
   typedef unsigned int uint32;
 
-  /* determine 64-bit data model */
+  // determine 64-bit data model
   #if defined(_WIN32) || defined(_WIN64)
-    /* assume ILP32 or LLP64 (MSVC, MinGW) */
+    // assume ILP32 or LLP64 (MSVC, MinGW)
     #define FPZIP_LLP64 1
   #else
-    /* assume LP64 (Linux, macOS, ...) */
+    // assume LP64 (Linux, macOS, ...)
     #define FPZIP_LP64 1
   #endif
 
-  /* concatenation for literal suffixes */
+  // concatenation for literal suffixes
   #define _fpzip_cat_(x, y) x ## y
   #define _fpzip_cat(x, y) _fpzip_cat_(x, y)
 
-  /* signed 64-bit integers */
+  // signed 64-bit integers
   #if defined(FPZIP_INT64) && defined(FPZIP_INT64_SUFFIX)
     #define INT64C(x) _fpzip_cat(x, FPZIP_INT64_SUFFIX)
     #define INT64PRId #FPZIP_INT64_SUFFIX "d"
@@ -76,7 +76,7 @@ typedef unsigned long ulong;
   #define INT64SCNd INT64PRId
   #define INT64SCNi INT64PRIi
 
-  /* unsigned 64-bit integers */
+  // unsigned 64-bit integers
   #if defined(FPZIP_UINT64) && defined(FPZIP_UINT64_SUFFIX)
     #define UINT64C(x) _fpzip_cat(x, FPZIP_UINT64_SUFFIX)
     #ifdef FPZIP_INT64_SUFFIX
