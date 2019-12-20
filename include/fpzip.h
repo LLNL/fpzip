@@ -1,7 +1,38 @@
 /*
-** fpzip version 1.3.0, December XX, 2019
-** LLNL-CODE-764017
-** Written by Peter Lindstrom, Lawrence Livermore National Laboratory
+** Copyright (c) 2018-2019, Lawrence Livermore National Security, LLC.
+** Produced at the Lawrence Livermore National Laboratory.
+** Author: Peter Lindstrom.
+** LLNL-CODE-764017.
+** All rights reserved.
+**
+** This file is part of the fpzip library.
+** For details, see http://computing.llnl.gov/casc/fpzip/.
+**
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions are met:
+** 
+** 1. Redistributions of source code must retain the above copyright notice,
+**    this list of conditions and the following disclaimer.
+** 
+** 2. Redistributions in binary form must reproduce the above copyright notice,
+**    this list of conditions and the following disclaimer in the documentation
+**    and/or other materials provided with the distribution.
+** 
+** 3. Neither the name of the copyright holder nor the names of its
+**    contributors may be used to endorse or promote products derived from
+**    this software without specific prior written permission.
+** 
+** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+** AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+** IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+** ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+** LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+** CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+** SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+** INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+** CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+** ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+** POSSIBILITY OF SUCH DAMAGE.
 **
 **
 **                               SUMMARY
@@ -10,16 +41,16 @@
 ** of single- or double-precision floating-point scalars.  Although linear
 ** (1D) streams of scalars may be compressed as well, the library has
 ** primarily been designed to exploit higher-dimensional structure in the
-** data, and may not perform well on 1D data or on data not stored as a
-** spatially coherent contiguous array, with 'smoothly' varying values.
+** data.  fpzip may not perform well on 1D data or on data not stored as a
+** spatially correlated contiguous array, with 'smoothly' varying values.
 **
-** The library supports compression to either a file or to main memory, and
+** The library supports compression to either a file or to main memory and
 ** allows specifying how many bits of precision to retain by truncating
 ** each floating-point value and discarding the least significant bits; the
 ** remaining bits are compressed losslessly.  The precision is limited to
 ** integers 2-32 for floats.  For doubles, precisions 4-64 are supported in
 ** increments of two bits.  The decompressed data is returned in full
-** precision, with any truncated bits zeroed.
+** precision with any truncated bits zeroed.
 **
 ** Because floating-point arithmetic may be affected by factors such as
 ** register precision, rounding mode, and compiler optimizations,
@@ -27,23 +58,23 @@
 ** set of compile-time macros.  For example, it is possible to specify that
 ** floating-point operations be emulated via integer arithmetic, or to
 ** treat the binary representation of floating-point numbers as integers.
-** Please consult the Makefile for choosing among these settings.  The
+** Please consult the Config file for choosing among these settings.  The
 ** compressor works correctly on the IEEE 754 floating-point format, though
 ** no particular assumption is made on the floating-point representation
 ** other than the most significant bit being the sign bit.  Special values
-** such as infinities, NaNs, and denormalized numbers should be handled
+** such as infinities, NaNs, and subnormal numbers should be handled
 ** correctly by the compressor in lossless mode.
 **
 ** For convenience, functions are provided for reading and writing a header
-** that stores version specific information and meta data such as array
-** dimensions.  Such meta data must be provided to both compressor and
+** that stores version specific information and metadata such as array
+** dimensions.  Such metadata must be provided to both compressor and
 ** decompressor.  It is up to the caller to decide whether or not to use
 ** such fpzip headers, as this information may already be available
 ** externally from container formats like HDF5.  If fpzip headers are not
 ** used, then the FPZ fields must be set by the caller in both read and
 ** write mode.
 **
-** A single compressed stream may store multiple contiguous fields (e.g.
+** A single compressed stream may store multiple contiguous fields (e.g.,
 ** for multiple arrays with the same dimensions that represent different
 ** variables).  Similarly, a stream may store multiple arrays of different
 ** dimensions and types, possibly with one header per array.  It is up to
@@ -58,11 +89,37 @@
 ** fpzip is distributed as Open Source under a BSD-3 license.  The core
 ** library is written in C++ and applications need to be linked with a C++
 ** linker.  The library can, however, be called from C.  For further
-** information and bug reports, please e-mail fpzip@llnl.gov.
+** information, please e-mail fpzip@llnl.gov.
 */
 
 #ifndef FPZIP_H
 #define FPZIP_H
+
+/* extern_ macro for exporting and importing symbols */
+#if defined(_MSC_VER) && defined(FPZIP_SHARED_LIBS)
+  /* export (import) symbols when FPZIP_SOURCE is (is not) defined */
+  #ifdef FPZIP_SOURCE
+    /* export symbols */
+    #ifdef __cplusplus
+      #define extern_ extern "C" __declspec(dllexport)
+    #else
+      #define extern_ extern     __declspec(dllexport)
+    #endif
+  #else
+    /* import symbols */
+    #ifdef __cplusplus
+      #define extern_ extern "C" __declspec(dllimport)
+    #else
+      #define extern_ extern     __declspec(dllimport)
+    #endif
+  #endif
+#else /* !(_MSC_VER && FPZIP_SHARED_LIBS) */
+  #ifdef __cplusplus
+    #define extern_ extern "C"
+  #else
+    #define extern_ extern
+  #endif
+#endif
 
 /* stringification */
 #define _fpzip_str_(x) # x
@@ -115,9 +172,9 @@ typedef struct {
 } FPZ;
 
 /* public data */
-extern const unsigned int fpzip_codec_version; /* codec version FPZIP_CODEC */
-extern const unsigned int fpzip_library_version; /* library version FPZIP_VERSION */
-extern const char* const fpzip_version_string; /* verbose version string */
+extern_ const unsigned int fpzip_codec_version;   /* codec version FPZIP_CODEC */
+extern_ const unsigned int fpzip_library_version; /* library version FPZIP_VERSION */
+extern_ const char* const fpzip_version_string;   /* verbose version string */
 
 /* associate file with compressed input stream */
 FPZ*                  /* compressed stream */
@@ -197,7 +254,7 @@ typedef enum {
   fpzipErrorInternal       = 7  /* exception thrown */
 } fpzipError;
 
-extern fpzipError fpzip_errno;     /* error code */
+extern fpzipError fpzip_errno; /* error code */
 extern const char* const fpzip_errstr[]; /* error message indexed by fpzip_errno */
 
 #ifdef __cplusplus
