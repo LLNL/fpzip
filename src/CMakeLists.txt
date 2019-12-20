@@ -23,8 +23,9 @@ if(HAVE_LIBM_MATH)
   target_link_libraries(fpzip PRIVATE m)
 endif()
 
-if(WIN32)
+if(WIN32 AND BUILD_SHARED_LIBS)
   # Define FPZIP_SOURCE when compiling libfpzip to export symbols to Windows DLL
+  list(APPEND fpzip_public_defs FPZIP_SHARED_LIBS)
   list(APPEND fpzip_private_defs FPZIP_SOURCE)
 endif()
 
