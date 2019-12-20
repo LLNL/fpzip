@@ -1,0 +1,6 @@
+add_executable(testfpzip testfpzip.c)
+target_link_libraries(testfpzip fpzip)
+if(HAVE_LIBM_MATH)
+  target_link_libraries(testfpzip m)
+endif()
+add_test(NAME compress-decompress-validate COMMAND testfpzip)

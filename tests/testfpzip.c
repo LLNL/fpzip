@@ -3,354 +3,370 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include "fpzip.h"
 
-// return current time
 static double
-now()
+double_rand()
 {
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  return tv.tv_sec + 1e-6 * tv.tv_usec;
+  static unsigned long seed = 1;
+  double val;
+  seed = 0x5deece66dul * seed + 13ul;
+  seed &= 0xfffffffffffful;
+  val = ldexp(seed, -48);
+  val = 2 * val - 1;
+  val *= val * val;
+  return val;
 }
 
-// compress 'inbytes' bytes from 'data' to stream 'FPZ'
-static int
-compress(FPZ* fpz, const void* data, size_t inbytes, const char* medium)
+static float
+float_rand()
 {
-  fprintf(stderr, "compressing to %s\n", medium);
-  double t = now();
-#ifndef WITHOUT_HEADER
-  // write header (optional)
+  return (float)double_rand();
+}
+
+/* generate a trilinear field perturbed by random noise */
+float*
+float_field(int nx, int ny, int nz, float offset)
+{
+  int n = nx * ny * nz;
+  float* field = malloc(n * sizeof(float));
+  int i, x, y, z;
+  /* generate random field */
+  *field = offset;
+  for (i = 1; i < n; i++)
+    field[i] = float_rand();
+  /* integrate along x */
+  for (z = 0; z < nz; z++)
+    for (y = 0; y < ny; y++)
+      for (x = 1; x < nx; x++)
+        field[x + nx * (y + ny * z)] += field[(x - 1) + nx * (y + ny * z)];
+  /* integrate along y */
+  for (z = 0; z < nz; z++)
+    for (y = 1; y < ny; y++)
+      for (x = 0; x < nx; x++)
+        field[x + nx * (y + ny * z)] += field[x + nx * ((y - 1) + ny * z)];
+  /* integrate along z */
+  for (z = 1; z < nz; z++)
+    for (y = 0; y < ny; y++)
+      for (x = 0; x < nx; x++)
+        field[x + nx * (y + ny * z)] += field[x + nx * (y + ny * (z - 1))];
+  return field;
+}
+
+/* generate a trilinear field perturbed by random noise */
+double*
+double_field(int nx, int ny, int nz, double offset)
+{
+  int n = nx * ny * nz;
+  double* field = malloc(n * sizeof(double));
+  int i, x, y, z;
+  /* generate random field */
+  *field = offset;
+  for (i = 1; i < n; i++)
+    field[i] = double_rand();
+  /* integrate along x */
+  for (z = 0; z < nz; z++)
+    for (y = 0; y < ny; y++)
+      for (x = 1; x < nx; x++)
+        field[x + nx * (y + ny * z)] += field[(x - 1) + nx * (y + ny * z)];
+  /* integrate along y */
+  for (z = 0; z < nz; z++)
+    for (y = 1; y < ny; y++)
+      for (x = 0; x < nx; x++)
+        field[x + nx * (y + ny * z)] += field[x + nx * ((y - 1) + ny * z)];
+  /* integrate along z */
+  for (z = 1; z < nz; z++)
+    for (y = 0; y < ny; y++)
+      for (x = 0; x < nx; x++)
+        field[x + nx * (y + ny * z)] += field[x + nx * (y + ny * (z - 1))];
+  return field;
+}
+
+/* compress floating-point data */
+static size_t
+compress(FPZ* fpz, const void* data)
+{
+  size_t size;
+  /* write header */
   if (!fpzip_write_header(fpz)) {
     fprintf(stderr, "cannot write header: %s\n", fpzip_errstr[fpzip_errno]);
     return 0;
   }
-#endif
-  // perform actual compression
-  size_t outbytes = fpzip_write(fpz, data);
-  if (!outbytes) {
+  /* perform actual compression */
+  size = fpzip_write(fpz, data);
+  if (!size) {
     fprintf(stderr, "compression failed: %s\n", fpzip_errstr[fpzip_errno]);
     return 0;
   }
-  t = now() - t;
-  fprintf(stderr, "in=%zu out=%zu ratio=%.2f seconds=%.3f MB/s=%.3f\n", inbytes, outbytes, (double)inbytes / outbytes, t, (double)inbytes / (1024 * 1024 * t));
-  return 1;
+  return size;
 }
 
-// decompress 'inbytes' bytes to 'data' from stream 'FPZ'
+/* decompress floating-point data */
 static int
-decompress(FPZ* fpz, void* data, size_t inbytes, const char* medium)
+decompress(FPZ* fpz, void* data, size_t inbytes)
 {
-  fprintf(stderr, "decompressing from %s\n", medium);
-  double t = now();
-#ifndef WITHOUT_HEADER
-  // read header (if previously written)
+  /* read header */
   if (!fpzip_read_header(fpz)) {
     fprintf(stderr, "cannot read header: %s\n", fpzip_errstr[fpzip_errno]);
     return 0;
   }
-  // make sure array size stored in header matches expectations
-  size_t size = (fpz->type == FPZIP_TYPE_FLOAT ? sizeof(float) : sizeof(double));
-  if (size * fpz->nx * fpz->ny * fpz->nz * fpz->nf != inbytes) {
+  /* make sure array size stored in header matches expectations */
+  if ((fpz->type == FPZIP_TYPE_FLOAT ? sizeof(float) : sizeof(double)) * fpz->nx * fpz->ny * fpz->nz * fpz->nf != inbytes) {
     fprintf(stderr, "array size does not match dimensions from header\n");
     return 0;
   }
-#endif
-  // perform actual decompression
+  /* perform actual decompression */
   if (!fpzip_read(fpz, data)) {
     fprintf(stderr, "decompression failed: %s\n", fpzip_errstr[fpzip_errno]);
-    return EXIT_FAILURE;
+    return 0;
   }
-  t = now() - t;
-  fprintf(stderr, "seconds=%.3f MB/s=%.3f\n", t, (double)inbytes / (1024 * 1024 * t));
   return 1;
 }
 
-// validate float data
-static int
-validate_float(const float* data, const float* copy, size_t count)
+static unsigned int
+checksum(const void* buffer, size_t size)
 {
-  fprintf(stderr, "validating\n");
-  for (size_t i = 0; i < count; i++)
-    if (data[i] != copy[i]) {
-      fprintf(stderr, "validation failed at i=%zu\n", i);
-      return 0;
-    }
-  return 1;
-}
-
-// validate double data
-static int
-validate_double(const double* data, const double* copy, size_t count)
-{
-  fprintf(stderr, "validating\n");
-  for (size_t i = 0; i < count; i++)
-    if (data[i] != copy[i]) {
-      fprintf(stderr, "validation failed at i=%zu\n", i);
-      return 0;
-    }
-  return 1;
-}
-
-// compute error for float data
-static double
-error_float(const float* data, const float* copy, size_t count)
-{
-  fprintf(stderr, "computing error\n");
-  double e = 0;
-  for (size_t i = 0; i < count; i++)
-    e += (data[i] - copy[i]) * (data[i] - copy[i]);
-  return sqrt(e / count);
-}
-
-// compute error for double data
-static double
-error_double(const double* data, const double* copy, size_t count)
-{
-  fprintf(stderr, "computing error\n");
-  double e = 0;
-  for (size_t i = 0; i < count; i++)
-    e += (data[i] - copy[i]) * (data[i] - copy[i]);
-  return sqrt(e / count);
-}
-
-// verify lossless compression or measure loss
-static int
-validate(const void* data, const void* copy, size_t count, int type, int lossless)
-{
-  if (lossless) {
-    if (!(type == FPZIP_TYPE_FLOAT ? validate_float((const float*)data, (const float*)copy, count) : validate_double((const double*)data, (const double*)copy, count)))
-      return 0;
+  unsigned int h = 0;
+  const unsigned char* p;
+  for (p = buffer; size; p++, size--) {
+    /* Jenkins one-at-a-time hash */
+    /* See http://www.burtleburtle.net/bob/hash/doobs.html */
+    h += *p;
+    h += h << 10;
+    h ^= h >>  6;
   }
-  else
-    fprintf(stderr, "rmse=%g\n", (type == FPZIP_TYPE_FLOAT ? error_float((const float*)data, (const float*)copy, count) : error_double((const double*)data, (const double*)copy, count)));
-  return 1;
+  h += h <<  3;
+  h ^= h >> 11;
+  h += h << 15;
+  return h;
 }
 
-int main(int argc, char* argv[])
+static int
+test(const char* name, int success)
 {
-  int type = FPZIP_TYPE_FLOAT;
-  int prec = 0;
-  int nx = 1;
-  int ny = 1;
-  int nz = 1;
-  int nf = 1;
-  char* infile = 0;
-  char* outfile = 0;
-  char* reconfile = 0;
+  fprintf(stderr, "%-40s [%s]\n", name, success ? " OK " : "FAIL");
+  return success;
+}
 
-  // parse command-line options
-  switch (argc) {
-    case 10:
-      reconfile = argv[9];
-      /*FALLTHROUGH*/
-    case 9:
-      outfile = argv[8];
-      /*FALLTHROUGH*/
-    case 8:
-      infile = argv[7];
-      /*FALLTHROUGH*/
-    case 7:
-      if (sscanf(argv[6], "%d", &prec) != 1)
-        goto usage;
-      /*FALLTHROUGH*/
-    case 6:
-      if (sscanf(argv[5], "%d", &nf) != 1)
-        goto usage;
-      /*FALLTHROUGH*/
-    case 5:
-      if (sscanf(argv[4], "%d", &nz) != 1)
-        goto usage;
-      /*FALLTHROUGH*/
-    case 4:
-      if (sscanf(argv[3], "%d", &ny) != 1)
-        goto usage;
-      /*FALLTHROUGH*/
-    case 3:
-      if (sscanf(argv[2], "%d", &nx) != 1)
-        goto usage;
-      /*FALLTHROUGH*/
-    case 2:
-      if (!strcmp(argv[1], "-f"))
-        type = FPZIP_TYPE_FLOAT;
-      else if (!strcmp(argv[1], "-d"))
-        type = FPZIP_TYPE_DOUBLE;
-      else
-        goto usage;
-      break;
-    default:
-    usage:
-      fprintf(stderr, "Usage: testfpzip <-f|-d> [nx [ny [nz [nf [prec [infile [outfile [reconfile]]]]]]]]\n");
-      return EXIT_FAILURE;
-  }
-
-  // initialize
-  fprintf(stderr, "testing '%s a[%d][%d][%d][%d]'\n", type == FPZIP_TYPE_FLOAT ? "float" : "double", nf, nz, ny, nx);
-  size_t count = (size_t)nx * ny * nz * nf;
-  size_t size = (type == FPZIP_TYPE_FLOAT ? sizeof(float) : sizeof(double));
-  size_t inbytes = count * size;
+/* perform compression, decompression, and validation of float array */
+static int
+test_float_array(const float* field, int nx, int ny, int nz, int prec, unsigned int expected_checksum)
+{
+  int success = 1;
+  int status;
+  unsigned int actual_checksum;
+  int dims = (nz == 1 ? ny == 1 ? 1 : 2 : 3);
+  size_t inbytes = nx * ny * nz * sizeof(float);
   size_t bufbytes = 1024 + inbytes;
-  if (prec == 0)
-    prec = CHAR_BIT * size;
-  int lossless = (prec == CHAR_BIT * size);
-
-  // allocate buffers
-#ifdef __cplusplus
-  void* data = (type == FPZIP_TYPE_FLOAT ? static_cast<void*>(new float[count]) : static_cast<void*>(new double[count]));
-  void* copy = (type == FPZIP_TYPE_FLOAT ? static_cast<void*>(new float[count]) : static_cast<void*>(new double[count]));
-  void* buffer = static_cast<void*>(new unsigned char[bufbytes]);
-#else
-  void* data = malloc(inbytes);
-  void* copy = malloc(inbytes);
+  size_t outbytes = 0;
   void* buffer = malloc(bufbytes);
-#endif
+  float* copy = malloc(inbytes);
+  char name[0x100];
 
-  // initialize scalar field
-  if (infile) {
-    // read raw data
-    fprintf(stderr, "reading input file\n");
-    FILE* file = fopen(infile, "rb");
-    if (!file) {
-      fprintf(stderr, "cannot open input file\n");
-      return EXIT_FAILURE;
-    }
-    if (fread(data, size, count, file) != count) {
-      fprintf(stderr, "read failed\n");
-      return EXIT_FAILURE;
-    }
-    fclose(file);
-  }
-  else {
-    // set scalar field to product of cosines
-    const double pi = acos(-1.0);
-    if (type == FPZIP_TYPE_FLOAT) {
-      float* p = (float*)data;
-      for (int f = 0; f < nf; f++)
-        for (int z = 0; z < nz; z++)
-          for (int y = 0; y < ny; y++)
-            for (int x = 0; x < nx; x++)
-              *p++ = cos(2 * pi * x / nx) * cos(2 * pi * y / ny) * cos(2 * pi * z / nz);
-    }
-    else {
-      double* p = (double*)data;
-      for (int f = 0; f < nf; f++)
-        for (int z = 0; z < nz; z++)
-          for (int y = 0; y < ny; y++)
-            for (int x = 0; x < nx; x++)
-              *p++ = cos(2 * pi * x / nx) * cos(2 * pi * y / ny) * cos(2 * pi * z / nz);
-    }
-  }
-
-  // compress to memory
+  /* compress to memory */
   FPZ* fpz = fpzip_write_to_buffer(buffer, bufbytes);
-  fpz->type = type;
+  fpz->type = FPZIP_TYPE_FLOAT;
   fpz->prec = prec;
   fpz->nx = nx;
   fpz->ny = ny;
   fpz->nz = nz;
-  fpz->nf = nf;
-  if (!compress(fpz, data, inbytes, "memory"))
-    return EXIT_FAILURE;
+  fpz->nf = 1;
+  outbytes = compress(fpz, field);
+  status = (0 < outbytes && outbytes <= bufbytes);
   fpzip_write_close(fpz);
+  sprintf(name, "test.float.%dd.prec%d.compress", dims, prec);
+  success &= test(name, status);
 
-  // decompress from memory
-  fpz = fpzip_read_from_buffer(buffer);
-#ifdef WITHOUT_HEADER
-  // manually set array parameters since header is not stored
-  fpz->type = type;
-  fpz->prec = prec;
-  fpz->nx = nx;
-  fpz->ny = ny;
-  fpz->nz = nz;
-  fpz->nf = nf;
-#endif
-  if (!decompress(fpz, copy, inbytes, "memory"))
-    return EXIT_FAILURE;
-  fpzip_read_close(fpz);
+  if (success) {
+    /* test checksum */
+    actual_checksum = checksum(buffer, outbytes);
+    status = (actual_checksum == expected_checksum);
+    if (!status)
+      fprintf(stderr, "actual checksum %#x does not match expected checksum %#x\n", actual_checksum, expected_checksum);
+    sprintf(name, "test.float.%dd.prec%d.checksum", dims, prec);
+    success &= test(name, status);
 
-  // perform validation
-  if (!validate(data, copy, count, type, lossless))
-    return EXIT_FAILURE;
+    if (success) {
+      /* decompress */
+      fpz = fpzip_read_from_buffer(buffer);
+      status = decompress(fpz, copy, inbytes);
+      fpzip_read_close(fpz);
+      sprintf(name, "test.float.%dd.prec%d.decompress", dims, prec);
+      success &= test(name, status);
 
-  if (outfile) {
-    // compress to file
-    FILE* file = fopen(outfile, "wb");
-    if (!file) {
-      fprintf(stderr, "cannot create compressed file\n");
-      return EXIT_FAILURE;
-    }
-    fpz = fpzip_write_to_file(file);
-    fpz->type = type;
-    fpz->prec = prec;
-    fpz->nx = nx;
-    fpz->ny = ny;
-    fpz->nz = nz;
-    fpz->nf = nf;
-    if (!compress(fpz, data, inbytes, "file"))
-      return EXIT_FAILURE;
-    fpzip_write_close(fpz);
-    fclose(file);
-
-    // decompress from file
-    file = fopen(outfile, "rb");
-    if (!file) {
-      fprintf(stderr, "cannot open compressed file\n");
-      return EXIT_FAILURE;
-    }
-    fpz = fpzip_read_from_file(file);
-#ifdef WITHOUT_HEADER
-    // manually set array parameters since header is not stored
-    fpz->type = type;
-    fpz->prec = prec;
-    fpz->nx = nx;
-    fpz->ny = ny;
-    fpz->nz = nz;
-    fpz->nf = nf;
-#endif
-    if (!decompress(fpz, copy, inbytes, "file"))
-      return EXIT_FAILURE;
-    fpzip_read_close(fpz);
-    fclose(file);
-
-    // perform validation
-    if (!validate(data, copy, count, type, lossless))
-      return EXIT_FAILURE;
-
-    if (reconfile) {
-      // write reconstructed data to file
-      FILE* file = fopen(reconfile, "wb");
-      if (!file) {
-        fprintf(stderr, "cannot open reconstructed file\n");
-        return EXIT_FAILURE;
+      if (success && !(0 < prec && prec < 32)) {
+        /* validate */
+        status = !memcmp(field, copy, inbytes);
+        sprintf(name, "test.float.%dd.prec%d.validate", dims, prec);
+        success &= test(name, status);
       }
-      if (fwrite(copy, size, count, file) != count) {
-        fprintf(stderr, "write failed\n");
-        return EXIT_FAILURE;
-      }
-      fclose(file);
     }
   }
 
-  // deallocate buffers
-#ifdef __cplusplus
-  if (type == FPZIP_TYPE_FLOAT) {
-    delete[] static_cast<float*>(data);
-    delete[] static_cast<float*>(copy);
-  }
-  else {
-    delete[] static_cast<double*>(data);
-    delete[] static_cast<double*>(copy);
-  }
-  delete[] static_cast<unsigned char*>(buffer);
-#else
-  free(data);
   free(copy);
   free(buffer);
-#endif
 
-  fprintf(stderr, "OK\n");
+  return success;
+}
 
-  return 0;
+/* perform compression, decompression, and validation of double array */
+static int
+test_double_array(const double* field, int nx, int ny, int nz, int prec, unsigned int expected_checksum)
+{
+  int success = 1;
+  int status;
+  unsigned int actual_checksum;
+  int dims = (nz == 1 ? ny == 1 ? 1 : 2 : 3);
+  size_t inbytes = nx * ny * nz * sizeof(double);
+  size_t bufbytes = 1024 + inbytes;
+  size_t outbytes = 0;
+  void* buffer = malloc(bufbytes);
+  float* copy = malloc(inbytes);
+  char name[0x100];
+
+  /* compress to memory */
+  FPZ* fpz = fpzip_write_to_buffer(buffer, bufbytes);
+  fpz->type = FPZIP_TYPE_DOUBLE;
+  fpz->prec = prec;
+  fpz->nx = nx;
+  fpz->ny = ny;
+  fpz->nz = nz;
+  fpz->nf = 1;
+  outbytes = compress(fpz, field);
+  status = (0 < outbytes && outbytes <= bufbytes);
+  fpzip_write_close(fpz);
+  sprintf(name, "test.double.%dd.prec%d.compress", dims, prec);
+  success &= test(name, status);
+
+  if (success) {
+    /* test checksum */
+    actual_checksum = checksum(buffer, outbytes);
+    status = (actual_checksum == expected_checksum);
+    if (!status)
+      fprintf(stderr, "actual checksum %#x does not match expected checksum %#x\n", actual_checksum, expected_checksum);
+    sprintf(name, "test.double.%dd.prec%d.checksum", dims, prec);
+    success &= test(name, status);
+
+    if (success) {
+      /* decompress */
+      fpz = fpzip_read_from_buffer(buffer);
+      status = decompress(fpz, copy, inbytes);
+      fpzip_read_close(fpz);
+      sprintf(name, "test.double.%dd.prec%d.decompress", dims, prec);
+      success &= test(name, status);
+
+      if (success && !(0 < prec && prec < 64)) {
+        /* validate */
+        status = !memcmp(field, copy, inbytes);
+        sprintf(name, "test.double.%dd.prec%d.validate", dims, prec);
+        success &= test(name, status);
+      }
+    }
+  }
+
+  free(copy);
+  free(buffer);
+
+  return success;
+}
+
+/* single-precision tests */
+static int
+test_float(int nx, int ny, int nz)
+{
+  int success = 1;
+  const unsigned int cksum[][3][3] = {
+    { /* FPZIP_FP_FAST */
+      { 0x3000789du, 0x82ff21a9u, 0x8ba839cau }, /* prec = 8 */
+      { 0x4e83f5b6u, 0x65bd23deu, 0xe7dfa496u }, /* prec = 16 */
+      { 0x8c3d93f8u, 0xd76feb4bu, 0xaa01387cu }, /* lossless */
+    },
+    { /* FPZIP_FP_SAFE */
+      { 0xe2652208u, 0xf63432f4u, 0x29ff853eu }, /* prec = 8 */
+      { 0xec094b7au, 0xe28a7309u, 0xafcbfb1cu }, /* prec = 16 */
+      { 0xa7e95552u, 0xb036a419u, 0x3bb63058u }, /* lossless */
+    },
+    { /* FPZIP_FP_EMUL */
+      { 0x5c55f580u, 0xd792786au, 0x6f58736bu }, /* prec = 8 */
+      { 0x6120c7ebu, 0x88b63ac7u, 0x41b48927u }, /* prec = 16 */
+      { 0xfb5bbb6du, 0xf032dbb1u, 0x316cb73cu }, /* lossless */
+    },
+    { /* FPZIP_FP_INT */
+      { 0xe915d3cfu, 0xb99c594eu, 0x74edb83cu }, /* prec = 8 */
+      { 0x7ea41342u, 0x230aabebu, 0x6192c4cau }, /* prec = 16 */
+      { 0xd2cdf77au, 0x9cdd54acu, 0xa7addbd2u }, /* lossless */
+    },
+  };
+  float* field = float_field(nx, ny, nz, -4);
+  int i;
+  for (i = 0; i < 3; i++) {
+    int prec = 8 << i;
+    success &= test_float_array(field, nx * ny * nz, 1, 1, prec, cksum[FPZIP_FP - 1][i][0]);
+    success &= test_float_array(field, nx, ny * nz, 1, prec, cksum[FPZIP_FP - 1][i][1]);
+    success &= test_float_array(field, nx, ny, nz, prec, cksum[FPZIP_FP - 1][i][2]);
+  }
+  free(field);
+
+  return success;
+}
+
+/* double-precision tests */
+static int
+test_double(int nx, int ny, int nz)
+{
+  int success = 1;
+  const unsigned int cksum[][3][3] = {
+    { /* FPZIP_FP_FAST */
+      { 0x4c9467edu, 0x1001c8e4u, 0xe43b6147u }, /* prec = 16 */
+      { 0xbb57b84au, 0x49d952edu, 0x3994f942u }, /* prec = 32 */
+      { 0x8680e06eu, 0xd00fdc85u, 0x8d63188eu }, /* lossless */
+    },
+    { /* FPZIP_FP_SAFE */
+      { 0x91f8f8c5u, 0xfe9110c8u, 0xceaf0a86u }, /* prec = 16 */
+      { 0x2faf5806u, 0xc5da48e9u, 0xfb922152u }, /* prec = 32 */
+      { 0x1f8b2600u, 0xa7bd7c44u, 0xa14ef493u }, /* lossless */
+    },
+    { /* FPZIP_FP_EMUL */
+      { 0x3b8aa65cu, 0x9b82e8fbu, 0x62cbdcddu }, /* prec = 16 */
+      { 0x219a7aa0u, 0x187ddda3u, 0xaeb32ebcu }, /* prec = 32 */
+      { 0x1ceaa5ecu, 0x8509dad8u, 0x9944c23fu }, /* lossless */
+    },
+    { /* FPZIP_FP_INT */
+      { 0x340802f9u, 0x9141329bu, 0x17603dc7u }, /* prec = 16 */
+      { 0x0a948b36u, 0x0175645eu, 0x70f8052cu }, /* prec = 32 */
+      { 0xe24d010bu, 0x852cc790u, 0xe668cf86u }, /* lossless */
+    },
+  };
+  double* field = double_field(nx, ny, nz, -4);
+  int i;
+  for (i = 0; i < 3; i++) {
+    int prec = 16 << i;
+    success &= test_double_array(field, nx * ny * nz, 1, 1, prec, cksum[FPZIP_FP - 1][i][0]);
+    success &= test_double_array(field, nx, ny * nz, 1, prec, cksum[FPZIP_FP - 1][i][1]);
+    success &= test_double_array(field, nx, ny, nz, prec, cksum[FPZIP_FP - 1][i][2]);
+  }
+  free(field);
+
+  return success;
+}
+
+int main()
+{
+  const int nx = 65;
+  const int ny = 64;
+  const int nz = 63;
+
+  int success = 1;
+  success &= test_float(nx, ny, nz);
+  success &= test_double(nx, ny, nz);
+  fprintf(stderr, "\n");
+
+  if (success) {
+    fprintf(stderr, "all tests passed\n");
+    return EXIT_SUCCESS;
+  }
+  else {
+    fprintf(stderr, "one or more tests failed\n");
+    return EXIT_FAILURE;
+  }
 }

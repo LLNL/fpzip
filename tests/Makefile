@@ -1,21 +1,17 @@
-CC = gcc
-CFLAGS = -std=c99 -O3 -Wall -pedantic
-CXX = g++
-CXXFLAGS = -std=c++98 -O3 -Wall -pedantic
+include ../Config
 
-# uncomment to disable array headers
-#CFLAGS += -DWITHOUT_HEADER
+BINDIR = ../bin
+LIBDIR = ../lib
+TARGET = $(BINDIR)/testfpzip
 
-all: fpzip testfpzip
+all: $(TARGET)
 
-fpzip: fpzip.cpp ../lib/libfpzip.a
-	$(CXX) $(CXXFLAGS) -I../inc -L../lib fpzip.cpp -lfpzip -o $@
+$(TARGET): testfpzip.c ../lib/$(LIBFPZIP)
+	mkdir -p ../bin
+	$(CC) $(CFLAGS) testfpzip.c -L$(LIBDIR) -lfpzip -lstdc++ -o $(TARGET)
 
-testfpzip: testfpzip.o ../lib/libfpzip.a
-	$(CXX) $(CXXFLAGS) -L../lib testfpzip.o -lfpzip -o $@
-
-testfpzip.o: testfpzip.c
-	$(CC) $(CFLAGS) -I../inc -c $<
+test: $(BINDIR)/testfpzip
+	$(BINDIR)/testfpzip
 
 clean:
-	@rm -f fpzip testfpzip testfpzip.o
+	rm -f $(TARGET)

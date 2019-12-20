@@ -5,8 +5,8 @@ CXX = g++
 
 # language standard -----------------------------------------------------------
 
-# CSTD = -std=c89 -Wno-unused-function
-  CSTD = -std=c99
+  CSTD = -std=c89 -Wno-unused-function
+# CSTD = -std=c99
   CXXSTD = -std=c++98
 # CXXSTD = -std=c++11
 

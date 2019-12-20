@@ -157,23 +157,19 @@ add_subdirectory(src)
 
 option(BUILD_ALL "Build all subdirectories" OFF)
 if(BUILD_ALL)
-  set(BUILD_UTILITIES ON CACHE BOOL "Build command line utilities for fpzip" FORCE)
-  set(BUILD_EXAMPLES ON CACHE BOOL "Build examples" FORCE)
+  set(BUILD_UTILITIES ON CACHE BOOL "Build command-line utilities for fpzip" FORCE)
+  set(BUILD_TESTING ON CACHE BOOL "Build tests" FORCE)
 endif()
 
-option(BUILD_UTILITIES "Build command line utilities for fpzip" ON)
+option(BUILD_UTILITIES "Build command-line utilities for fpzip" ON)
 if(BUILD_UTILITIES)
   add_subdirectory(utils)
 endif()
 
-#option(BUILD_EXAMPLES "Build examples" OFF)
-#if(BUILD_EXAMPLES)
-#  add_subdirectory(examples)
-#endif()
-
-#if(BUILD_TESTING)
-#  add_subdirectory(tests)
-#endif()
+option(BUILD_TESTING "Build tests" ON)
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()
 
 #------------------------------------------------------------------------------#
 # Header install

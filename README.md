@@ -40,6 +40,10 @@ To display the available options, type:
 
     cmake .. -L
 
+Basic regression testing is available:
+
+    ctest -V
+
 ### GNU builds
 
 fpzip may also be built using [GNU make](https://www.gnu.org/software/make/):
@@ -53,6 +57,10 @@ The GNU make options are listed in the file Config and should preferably be
 set on the command line, e.g.:
 
     gmake FPZIP_FP=FPZIP_FP_SAFE BUILD_UTILITIES=0
+
+To run the regression tests, type:
+
+    gmake test
 
 
 DOCUMENTATION
