@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
     size_t size = (type == FPZIP_TYPE_FLOAT ? sizeof(float) : sizeof(double));
     data = (type == FPZIP_TYPE_FLOAT ? static_cast<void*>(new float[count]) : static_cast<void*>(new double[count]));
     if (prec == 0)
-      prec = CHAR_BIT * size;
+      prec = (int)(CHAR_BIT * size);
     else if (prec < 0 || (size_t)prec > CHAR_BIT * size) {
       fprintf(stderr, "precision out of range\n");
       return EXIT_FAILURE;

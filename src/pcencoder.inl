@@ -22,7 +22,7 @@ T PCencoder<T, M, false>::encode(T real, T pred, uint context)
   U r = map.forward(real);
   U p = map.forward(pred);
   // entropy encode d = r - p
-  re->encode(bias + r - p, rm[context]);
+  re->encode(static_cast<uint>(bias + r - p), rm[context]);
   // return decoded value
   return map.inverse(r);
 }

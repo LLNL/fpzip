@@ -12,7 +12,7 @@ inline void RCencoder::encode(UINT s, uint n)
       s >>= 16;
       n -= 16;
     }
-  encode_shift(s, n);
+  encode_shift(static_cast<uint>(s), n);
 }
 
 template <typename UINT>
