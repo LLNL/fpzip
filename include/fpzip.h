@@ -254,8 +254,8 @@ typedef enum {
   fpzipErrorInternal       = 7  /* exception thrown */
 } fpzipError;
 
-extern fpzipError fpzip_errno; /* error code */
-extern const char* const fpzip_errstr[]; /* error message indexed by fpzip_errno */
+extern_ fpzipError fpzip_errno; /* error code */
+extern_ const char* const fpzip_errstr[]; /* error message indexed by fpzip_errno */
 
 #ifdef __cplusplus
 }
