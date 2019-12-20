@@ -26,7 +26,7 @@ INSTALLATION
 fpzip was developed for Linux and macOS but can be built on Windows using
 [CMake](https://cmake.org).  To use CMake, type:
 
-    cd fpzip-1.3.0
+    cd fpzip
     mkdir build
     cd build
     cmake ..
@@ -44,7 +44,7 @@ To display the available options, type:
 
 fpzip may also be built using [GNU make](https://www.gnu.org/software/make/):
 
-    cd fpzip-1.3.0
+    cd fpzip
     gmake
 
 This builds lib/libfpzip.a and bin/fpzip.
@@ -67,8 +67,8 @@ numbers.  Usage is given by:
     fpzip -h
 
 
-AUTHORS
--------
+AUTHOR
+------
 
 fpzip was written by [Peter Lindstrom](https://people.llnl.gov/pl) at
 Lawrence Livermore National Laboratory.
@@ -81,8 +81,7 @@ If you use fpzip for scholarly research, please cite the following paper:
 
     Peter Lindstrom and Martin Isenburg
     "Fast and Efficient Compression of Floating-Point Data"
-    IEEE Transactions on Visualization and Computer Graphics,
-      12(5):1245-1250, September-October 2006.
+    IEEE Transactions on Visualization and Computer Graphics, 12(5):1245-1250, 2006
 
 
 LICENSE
