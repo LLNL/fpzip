@@ -175,6 +175,7 @@ typedef struct {
 extern_ const unsigned int fpzip_codec_version;   /* codec version FPZIP_CODEC */
 extern_ const unsigned int fpzip_library_version; /* library version FPZIP_VERSION */
 extern_ const char* const fpzip_version_string;   /* verbose version string */
+extern_ const unsigned int fpzip_data_model;      /* encoding of data model */
 
 /* associate file with compressed input stream */
 FPZ*                  /* compressed stream */
