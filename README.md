@@ -42,7 +42,7 @@ To display the available options, type:
 
 Basic regression testing is available:
 
-    ctest -V
+    ctest -V -C Release
 
 ### GNU builds
 

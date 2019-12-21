@@ -12,7 +12,7 @@ double_rand()
   double val;
   seed = 0x5deece66dul * seed + 13ul;
   seed &= 0xfffffffffffful;
-  val = ldexp(seed, -48);
+  val = ldexp((double)seed, -48);
   val = 2 * val - 1;
   val *= val * val;
   return val;
@@ -350,16 +350,77 @@ test_double(int nx, int ny, int nz)
   return success;
 }
 
+static int
+init()
+{
+  int fpzip_fp = FPZIP_FP;
+
+  fprintf(stderr, "%s\n", fpzip_version_string);
+  fprintf(stderr, "library version %#x\n", fpzip_library_version);
+  fprintf(stderr, "CODEC version %#x\n", fpzip_codec_version);
+
+  fprintf(stderr, "data model ");
+  switch (fpzip_data_model) {
+    case 0x7331u:
+      fprintf(stderr, "LP32\n");
+      break;
+    case 0x7333u:
+      fprintf(stderr, "ILP32\n");
+      break;
+    case 0x7733u:
+      fprintf(stderr, "LLP64\n");
+      break;
+    case 0x7773u:
+      fprintf(stderr, "LP64\n");
+      break;
+    case 0x7777u:
+      fprintf(stderr, "ILP64\n");
+      break;
+    default:
+      fprintf(stderr, "unsupported (%#0x)", fpzip_data_model);
+      if ((fpzip_data_model >> 12) != 0x7u)
+        fprintf(stderr, "uint64 is not 8 bytes; must set FPZIP_INT64\n");
+      return 0;
+  }
+
+  fprintf(stderr, "floating-point mode ");
+  switch (fpzip_fp) {
+    case FPZIP_FP_FAST:
+      fprintf(stderr, "FAST\n");
+      break;
+    case FPZIP_FP_SAFE:
+      fprintf(stderr, "SAFE\n");
+      break;
+    case FPZIP_FP_EMUL:
+      fprintf(stderr, "EMUL\n");
+      break;
+    case FPZIP_FP_INT:
+      fprintf(stderr, "INT\n");
+      break;
+    default:
+      fprintf(stderr, "unsupported (%d)n", fpzip_fp);
+      return 0;
+  }
+
+  fprintf(stderr, "\n");
+
+  return 1;
+}
+
 int main()
 {
+  int success = 1;
   const int nx = 65;
   const int ny = 64;
   const int nz = 63;
 
-  int success = 1;
-  success &= test_float(nx, ny, nz);
-  success &= test_double(nx, ny, nz);
-  fprintf(stderr, "\n");
+  if (init()) {
+    success &= test_float(nx, ny, nz);
+    success &= test_double(nx, ny, nz);
+    fprintf(stderr, "\n");
+  }
+  else
+    success = 0;
 
   if (success) {
     fprintf(stderr, "all tests passed\n");
