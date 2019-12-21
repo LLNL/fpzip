@@ -3,7 +3,7 @@
 
 ## 1.3.0 (December 20, 2019)
 
-- Released code under a BSD license.
+- Changed license to BSD.
 
 - Added CMake support.
 
@@ -11,7 +11,7 @@
 
 - Added library version string and identifiers.
 
-- Added user-defined 64-bit integer types for code portability
+- Added user-defined 64-bit integer types for code portability.
 
 - Renamed include directory and reorganized source file structure.
 
