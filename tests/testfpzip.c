@@ -8,12 +8,13 @@
 static double
 double_rand()
 {
-  static unsigned long seed = 1;
+  static unsigned int seed = 1;
   double val;
-  seed = 0x5deece66dul * seed + 13ul;
-  seed &= 0xfffffffffffful;
-  val = ldexp((double)seed, -48);
+  seed = 1103515245 * seed + 12345;
+  seed &= 0x7fffffffu;
+  val = ldexp((double)seed, -31);
   val = 2 * val - 1;
+  val *= val * val;
   val *= val * val;
   return val;
 }
@@ -182,7 +183,7 @@ test_float_array(const float* field, int nx, int ny, int nz, int prec, unsigned 
     actual_checksum = checksum(buffer, outbytes);
     status = (actual_checksum == expected_checksum);
     if (!status)
-      fprintf(stderr, "actual checksum %#x does not match expected checksum %#x\n", actual_checksum, expected_checksum);
+      fprintf(stderr, "actual checksum %#010x does not match expected checksum %#010x\n", actual_checksum, expected_checksum);
     sprintf(name, "test.float.%dd.prec%d.checksum", dims, prec);
     success &= test(name, status);
 
@@ -243,7 +244,7 @@ test_double_array(const double* field, int nx, int ny, int nz, int prec, unsigne
     actual_checksum = checksum(buffer, outbytes);
     status = (actual_checksum == expected_checksum);
     if (!status)
-      fprintf(stderr, "actual checksum %#x does not match expected checksum %#x\n", actual_checksum, expected_checksum);
+      fprintf(stderr, "actual checksum %#010x does not match expected checksum %#010x\n", actual_checksum, expected_checksum);
     sprintf(name, "test.double.%dd.prec%d.checksum", dims, prec);
     success &= test(name, status);
 
@@ -277,27 +278,27 @@ test_float(int nx, int ny, int nz)
   int success = 1;
   const unsigned int cksum[][3][3] = {
     { /* FPZIP_FP_FAST */
-      { 0x3000789du, 0x82ff21a9u, 0x8ba839cau }, /* prec = 8 */
-      { 0x4e83f5b6u, 0x65bd23deu, 0xe7dfa496u }, /* prec = 16 */
-      { 0x8c3d93f8u, 0xd76feb4bu, 0xaa01387cu }, /* lossless */
+      { 0x4cfacd05u, 0x0231ab7du, 0x8b8996d3u }, /* prec = 8 */
+      { 0x85d0f4c2u, 0x2235e041u, 0xb17f5c48u }, /* prec = 16 */
+      { 0x60ae0230u, 0x57e68ccdu, 0x2cb98d38u }, /* lossless */
     },
     { /* FPZIP_FP_SAFE */
-      { 0xe2652208u, 0xf63432f4u, 0x29ff853eu }, /* prec = 8 */
-      { 0xec094b7au, 0xe28a7309u, 0xafcbfb1cu }, /* prec = 16 */
-      { 0xa7e95552u, 0xb036a419u, 0x3bb63058u }, /* lossless */
+      { 0xf5f4b20bu, 0x7887478du, 0xbbb34337u }, /* prec = 8 */
+      { 0x69b605c4u, 0x150cc19du, 0xac6df12fu }, /* prec = 16 */
+      { 0x987330bcu, 0x00b05244u, 0x6e756ea3u }, /* lossless */
     },
     { /* FPZIP_FP_EMUL */
-      { 0x5c55f580u, 0xd792786au, 0x6f58736bu }, /* prec = 8 */
-      { 0x6120c7ebu, 0x88b63ac7u, 0x41b48927u }, /* prec = 16 */
-      { 0xfb5bbb6du, 0xf032dbb1u, 0x316cb73cu }, /* lossless */
+      { 0x9450495cu, 0x146b1324u, 0xa6a8a407u }, /* prec = 8 */
+      { 0xb41100a6u, 0x81f424a5u, 0xd1d81fecu }, /* prec = 16 */
+      { 0xfc8c1c4au, 0x4fcd3866u, 0x15852fafu }, /* lossless */
     },
     { /* FPZIP_FP_INT */
-      { 0xe915d3cfu, 0xb99c594eu, 0x74edb83cu }, /* prec = 8 */
-      { 0x7ea41342u, 0x230aabebu, 0x6192c4cau }, /* prec = 16 */
-      { 0xd2cdf77au, 0x9cdd54acu, 0xa7addbd2u }, /* lossless */
+      { 0x53dace3eu, 0xd5c02207u, 0x3507af15u }, /* prec = 8 */
+      { 0x99de7d80u, 0xe9cc6e16u, 0x7971d6bau }, /* prec = 16 */
+      { 0x3e32e8c1u, 0x8bb6d562u, 0x5d710559u }, /* lossless */
     },
   };
-  float* field = float_field(nx, ny, nz, -4);
+  float* field = float_field(nx, ny, nz, 0);
   int i;
   for (i = 0; i < 3; i++) {
     int prec = 8 << i;
@@ -317,27 +318,27 @@ test_double(int nx, int ny, int nz)
   int success = 1;
   const unsigned int cksum[][3][3] = {
     { /* FPZIP_FP_FAST */
-      { 0x4c9467edu, 0x1001c8e4u, 0xe43b6147u }, /* prec = 16 */
-      { 0xbb57b84au, 0x49d952edu, 0x3994f942u }, /* prec = 32 */
-      { 0x8680e06eu, 0xd00fdc85u, 0x8d63188eu }, /* lossless */
+      { 0xec303d31u, 0x761c82ecu, 0x1582bfc9u }, /* prec = 16 */
+      { 0x19b1ed74u, 0xcd914c6bu, 0x4e9fa29du }, /* prec = 32 */
+      { 0x84ab1addu, 0xba119745u, 0x0dd20faau }, /* lossless */
     },
     { /* FPZIP_FP_SAFE */
-      { 0x91f8f8c5u, 0xfe9110c8u, 0xceaf0a86u }, /* prec = 16 */
-      { 0x2faf5806u, 0xc5da48e9u, 0xfb922152u }, /* prec = 32 */
-      { 0x1f8b2600u, 0xa7bd7c44u, 0xa14ef493u }, /* lossless */
+      { 0x649c2280u, 0xa410d07au, 0x7bdf9bb9u }, /* prec = 16 */
+      { 0xb533993du, 0xff1ae747u, 0x2904d64au }, /* prec = 32 */
+      { 0x4f5e1168u, 0x7821f9d7u, 0xb02f2dbau }, /* lossless */
     },
     { /* FPZIP_FP_EMUL */
-      { 0x3b8aa65cu, 0x9b82e8fbu, 0x62cbdcddu }, /* prec = 16 */
-      { 0x219a7aa0u, 0x187ddda3u, 0xaeb32ebcu }, /* prec = 32 */
-      { 0x1ceaa5ecu, 0x8509dad8u, 0x9944c23fu }, /* lossless */
+      { 0x8f9d916eu, 0x5a1f2d53u, 0xdd8a74a5u }, /* prec = 16 */
+      { 0x90b11f76u, 0x03e0f555u, 0x48e6acf7u }, /* prec = 32 */
+      { 0x77a819e1u, 0xf5a906c9u, 0xf50b7a8bu }, /* lossless */
     },
     { /* FPZIP_FP_INT */
-      { 0x340802f9u, 0x9141329bu, 0x17603dc7u }, /* prec = 16 */
-      { 0x0a948b36u, 0x0175645eu, 0x70f8052cu }, /* prec = 32 */
-      { 0xe24d010bu, 0x852cc790u, 0xe668cf86u }, /* lossless */
+      { 0x914f81ddu, 0x3f845616u, 0xe09ab2d4u }, /* prec = 16 */
+      { 0x670ccd29u, 0x1725b2d2u, 0x2421464au }, /* prec = 32 */
+      { 0x7cc58c60u, 0xc5f53ff4u, 0xbfc5a355u }, /* lossless */
     },
   };
-  double* field = double_field(nx, ny, nz, -4);
+  double* field = double_field(nx, ny, nz, 0);
   int i;
   for (i = 0; i < 3; i++) {
     int prec = 16 << i;
