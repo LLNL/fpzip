@@ -5,13 +5,15 @@
 
 - Released code under a BSD license.
 
-- Renamed include directory and reorganized source file structure.
+- Added CMake support.
+
+- Added regression tests.
 
 - Added library version string and identifiers.
 
-- Added CMake support.
-
 - Added user-defined 64-bit integer types for code portability
+
+- Renamed include directory and reorganized source file structure.
 
 
 ## 1.2.0 (June 10, 2017)
