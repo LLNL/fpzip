@@ -14,11 +14,11 @@ clean:
 $(LIBDIR)/libfpzip.a: $(OBJECTS)
 	mkdir -p $(LIBDIR)
 	rm -f $@
-	ar rc $@ $^
+	ar rc $@ $(OBJECTS)
 
 $(LIBDIR)/libfpzip.so: $(OBJECTS)
 	mkdir -p $(LIBDIR)
-	$(CXX) $(CXXFLAGS) -shared $^ -o $@
+	$(CXX) $(CXXFLAGS) -shared $(OBJECTS) -o $@
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) -c $<
